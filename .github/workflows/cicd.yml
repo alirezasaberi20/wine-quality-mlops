@@ -167,7 +167,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: push-ecr
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment: production
     
     steps:
       - name: Configure AWS credentials
@@ -177,7 +176,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Get ECR Registry
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
@@ -198,28 +197,48 @@ jobs:
             # Pull latest image
             docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
             
-            # Stop and remove existing container
+            # Stop and remove existing containers
             docker stop wine-quality-api || true
             docker rm wine-quality-api || true
+            docker stop wine-quality-streamlit || true
+            docker rm wine-quality-streamlit || true
             
-            # Run new container
+            # Run FastAPI container
             docker run -d \
               --name wine-quality-api \
               --restart unless-stopped \
               -p 8000:8000 \
               $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
             
-            # Verify deployment
+            # Wait for API to be ready
             sleep 10
+            
+            # Run Streamlit container
+            docker run -d \
+              --name wine-quality-streamlit \
+              --restart unless-stopped \
+              -p 8501:8501 \
+              -e API_URL=http://$(hostname -I | awk '{print $1}'):8000 \
+              $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+              streamlit run streamlit_app/app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
+            
+            # Verify deployment
+            sleep 5
             curl -f http://localhost:8000/health || exit 1
             
+            echo "=========================================="
             echo "Deployment successful!"
+            echo "API: http://$(curl -s ifconfig.me):8000"
+            echo "API Docs: http://$(curl -s ifconfig.me):8000/docs"
+            echo "Streamlit UI: http://$(curl -s ifconfig.me):8501"
+            echo "=========================================="
 
-      - name: Notify deployment status
+      - name: Deployment Summary
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deployment to EC2 successful"
+            echo "✅ Deployment to EC2 successful!"
+            echo "🌐 Your application is now live!"
           else
             echo "❌ Deployment to EC2 failed"
           fi

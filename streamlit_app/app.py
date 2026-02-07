@@ -5,7 +5,19 @@ import requests
 import os
 
 # Configuration
+# Try to get API URL from environment, fallback to localhost
 API_URL = os.getenv("API_URL", "http://localhost:8000")
+
+# If running on same host, also try the docker bridge network
+import socket
+def get_api_url():
+    env_url = os.getenv("API_URL")
+    if env_url:
+        return env_url
+    # Try localhost first
+    return "http://localhost:8000"
+
+API_URL = get_api_url()
 
 # Page configuration
 st.set_page_config(

@@ -111,3 +111,6 @@ secrets/
 tmp/
 temp/
 *.tmp
+
+# SSH Keys - NEVER COMMIT
+*.pem
