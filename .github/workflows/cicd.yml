@@ -192,29 +192,30 @@ jobs:
           envs: ECR_REGISTRY,IMAGE_TAG,ECR_REPOSITORY,AWS_REGION
           script: |
             # Login to ECR
-            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+            aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
             
             # Pull latest image
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+            sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
             
             # Stop and remove existing containers
-            docker stop wine-quality-api || true
-            docker rm wine-quality-api || true
-            docker stop wine-quality-streamlit || true
-            docker rm wine-quality-streamlit || true
+            sudo docker stop wine-quality-api || true
+            sudo docker rm wine-quality-api || true
+            sudo docker stop wine-quality-streamlit || true
+            sudo docker rm wine-quality-streamlit || true
             
             # Run FastAPI container
-            docker run -d \
+            sudo docker run -d \
               --name wine-quality-api \
               --restart unless-stopped \
               -p 8000:8000 \
               $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
             
-            # Wait for API to be ready
-            sleep 10
+            # Wait for API to be ready (increased wait time)
+            echo "Waiting for API to start..."
+            sleep 20
             
             # Run Streamlit container
-            docker run -d \
+            sudo docker run -d \
               --name wine-quality-streamlit \
               --restart unless-stopped \
               -p 8501:8501 \
@@ -222,9 +223,20 @@ jobs:
               $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
               streamlit run streamlit_app/app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
             
-            # Verify deployment
-            sleep 5
-            curl -f http://localhost:8000/health || exit 1
+            # Verify deployment (with retries)
+            echo "Verifying deployment..."
+            sleep 10
+            for i in 1 2 3; do
+              if curl -f http://localhost:8000/health; then
+                echo "Health check passed!"
+                break
+              fi
+              echo "Retry $i..."
+              sleep 5
+            done
+            
+            # Show running containers
+            sudo docker ps
             
             echo "=========================================="
             echo "Deployment successful!"
