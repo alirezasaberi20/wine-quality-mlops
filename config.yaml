@@ -1,0 +1,57 @@
+# Wine Quality Classification - Configuration
+
+# Data settings
+data:
+  raw_data_path: "data/wine_quality.csv"
+  test_size: 0.2
+  random_state: 42
+  quality_threshold: 6  # wines with quality >= 6 are "good"
+
+# Feature columns
+features:
+  - fixed acidity
+  - volatile acidity
+  - citric acid
+  - residual sugar
+  - chlorides
+  - free sulfur dioxide
+  - total sulfur dioxide
+  - density
+  - pH
+  - sulphates
+  - alcohol
+
+# Target column
+target: quality
+
+# Model settings
+model:
+  type: "random_forest"  # Options: random_forest, logistic_regression
+  random_forest:
+    n_estimators: 100
+    max_depth: 10
+    min_samples_split: 2
+    min_samples_leaf: 1
+    random_state: 42
+  logistic_regression:
+    C: 1.0
+    max_iter: 1000
+    random_state: 42
+
+# MLflow settings
+mlflow:
+  experiment_name: "wine_quality_classification"
+  tracking_uri: "mlruns"
+
+# Model artifacts
+artifacts:
+  model_path: "models/model.pkl"
+  scaler_path: "models/scaler.pkl"
+
+# API settings
+api:
+  host: "0.0.0.0"
+  port: 8000
+  title: "Wine Quality Prediction API"
+  description: "API for predicting wine quality based on physicochemical properties"
+  version: "1.0.0"
